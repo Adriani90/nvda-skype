@@ -15,7 +15,7 @@ This addon only works with the classic version of Skype desktop, not the Electro
 
 All commands match those in the jaws scripts as closely as possible.
 
-* NVDA+Ctrl+0 through 9: read the 10 most recent messages when focus is on a conversation. This is implemented by the built-in app module, but has been enhanced so that it works  anywhere in Skype, not just when focus is inside the active conversation. This will be changed to alt+0 through 9 in the future.
+* NVDA+Ctrl+0 through 9: read the 10 most recent messages for the active conversation. This is implemented by the built-in app module, but has been enhanced so that it works  anywhere in Skype, not just when focus is inside the active conversation. This will be changed to alt+0 through 9 in the future.
 * Ctrl+1 (unimplemented): moves focus to the contacts list.
 * Ctrl+2: moves focus to the  recent conversations list.
 * Ctrl+3 (unimplemented): Moves focus to the list of active calls, if any. Active calls actually appear at the top of the recent conversations list, and are not in a separate list.
