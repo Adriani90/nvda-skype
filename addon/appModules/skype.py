@@ -4,6 +4,7 @@ import appModuleHandler
 import controlTypes
 from logHandler import log
 import NVDAObjects
+import keyboardHandler
 from nvdaBuiltin.appModules import skype
 import oleacc
 import ui
@@ -14,6 +15,9 @@ import gettext
 import languageHandler
 import addonHandler
 addonHandler.initTranslation()
+
+# Translators: message presented when there is no active conversation
+MSG_NO_ACTIVE_CONVERSATION = _("No active conversation.")
 
 class UnfocusableShellDocObjectView(NVDAObjects.IAccessible.ShellDocObjectView):
     def initOverlayClass(self):
@@ -56,7 +60,14 @@ class AppModule(skype.AppModule):
             self.moveFocusTo(handle)
         except LookupError:
             log.debugWarning("Couldn't find recent conversations list")
-            ui.message(_("Recent conversations list not visible."))
+            ui.message(MSG_NO_ACTIVE_CONVERSATION)
+        
+        """
+        # We use the built-in hotkey to do this and bind a different gesture
+        # alt+2 will be used for reviewing recent messages in future
+        keyboardHandler.KeyboardInputGesture.fromName("alt+2").send()
+        """
+    # Translators: Input help mode message for move to recent conversations list command
     script_moveToRecentConversationsList.__doc__ = _("Moves focus to the list of recent conversations.")
     
     # returns the handle of the chat history list window
@@ -77,7 +88,8 @@ class AppModule(skype.AppModule):
             self.moveFocusTo(handle)
         except LookupError:
             log.debugWarning("Couldn't find chat history list")
-            ui.message(_("No active conversation."))
+            ui.message(MSG_NO_ACTIVE_CONVERSATION)
+    # Translators: Input help mode message for the move to chat history command
     script_moveToChatHistory.__doc__ = _("Moves focus to the chat history for the active conversation.")
     
     def script_moveToChatEntryEdit(self, gesture):
@@ -91,9 +103,10 @@ class AppModule(skype.AppModule):
                 self.moveFocusTo(handle)
             except LookupError:
                 log.debugWarning("Couldn't find chat entry edit.")
-                ui.message(_("No active conversation."))
+                ui.message(MSG_NO_ACTIVE_CONVERSATION)
         else:
-            ui.message(_("No active conversation"))
+            ui.message(MSG_NO_ACTIVE_CONVERSATION)
+    # Translators: Input help mode message for move to chat entry field command
     script_moveToChatEntryEdit.__doc__ = _("Moves focus to the message input field for the active conversation.")
     
     def script_displayChatHistoryInVirtualBuffer(self, gesture):
@@ -102,11 +115,14 @@ class AppModule(skype.AppModule):
             chatHistoryObj = NVDAObjects.IAccessible.getNVDAObjectFromEvent(handle, winUser.OBJID_CLIENT, 0).lastChild
             messages = [msg.name for msg in chatHistoryObj.children]
             conversationName = chatHistoryObj.parent.parent.name
+            # Translators: brief summary when virtualizing conversation which includes the number of  messages shown
             text = _("Displaying the %d most recent messages chronologically:\n%s") % (len(messages), '\n'.join(messages))
+            # Translators: title of the buffer when virtualizing messages, excluding conversation name
             ui.browseableMessage(text, title=_("Chat history for ") + conversationName, isHtml=False)
         except LookupError:
             log.debugWarning("Couldn't find chat history list")
-            ui.message(_("No active conversation."))
+            ui.message(MSG_NO_ACTIVE_CONVERSATION)
+    # Translators: Input help mode message for virtualize conversation command
     script_displayChatHistoryInVirtualBuffer.__doc__ = _("Presents the chat history of the active conversation in a virtual document for review.")
     
     __gestures = {
