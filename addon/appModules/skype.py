@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import api
 import appModuleHandler
 import controlTypes
@@ -8,6 +9,11 @@ import oleacc
 import ui
 import winUser
 import windowUtils
+
+import gettext
+import languageHandler
+import addonHandler
+addonHandler.initTranslation()
 
 class UnfocusableShellDocObjectView(NVDAObjects.IAccessible.ShellDocObjectView):
     def initOverlayClass(self):
@@ -50,7 +56,7 @@ class AppModule(skype.AppModule):
             self.moveFocusTo(handle)
         except LookupError:
             log.debugWarning("Couldn't find recent conversations list")
-            ui.message("Recent conversations list not visible.")
+            ui.message(_("Recent conversations list not visible."))
     script_moveToRecentConversationsList.__doc__ = _("Moves focus to the list of recent conversations.")
     
     # returns the handle of the chat history list window
@@ -71,7 +77,7 @@ class AppModule(skype.AppModule):
             self.moveFocusTo(handle)
         except LookupError:
             log.debugWarning("Couldn't find chat history list")
-            ui.message("Chat history not visible.")
+            ui.message(_("No active conversation."))
     script_moveToChatHistory.__doc__ = _("Moves focus to the chat history for the active conversation.")
     
     def script_moveToChatEntryEdit(self, gesture):
@@ -85,9 +91,9 @@ class AppModule(skype.AppModule):
                 self.moveFocusTo(handle)
             except LookupError:
                 log.debugWarning("Couldn't find chat entry edit.")
-                ui.message("No active conversation")
+                ui.message(_("No active conversation."))
         else:
-            ui.message("No active conversation")
+            ui.message(_("No active conversation"))
     script_moveToChatEntryEdit.__doc__ = _("Moves focus to the message input field for the active conversation.")
     
     def script_displayChatHistoryInVirtualBuffer(self, gesture):
@@ -96,11 +102,11 @@ class AppModule(skype.AppModule):
             chatHistoryObj = NVDAObjects.IAccessible.getNVDAObjectFromEvent(handle, winUser.OBJID_CLIENT, 0).lastChild
             messages = [msg.name for msg in chatHistoryObj.children]
             conversationName = chatHistoryObj.parent.parent.name
-            text = "Displaying the %d most recent messages chronologically:\n%s" % (len(messages), '\n'.join(messages))
-            ui.browseableMessage(text, title="Chat history for " + conversationName, isHtml=False)
+            text = _("Displaying the %d most recent messages chronologically:\n%s") % (len(messages), '\n'.join(messages))
+            ui.browseableMessage(text, title=_("Chat history for ") + conversationName, isHtml=False)
         except LookupError:
             log.debugWarning("Couldn't find chat history list")
-            ui.message("Chat history not visible.")
+            ui.message(_("No active conversation."))
     script_displayChatHistoryInVirtualBuffer.__doc__ = _("Presents the chat history of the active conversation in a virtual document for review.")
     
     __gestures = {
