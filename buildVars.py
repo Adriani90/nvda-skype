@@ -20,7 +20,7 @@ addon_info = {
 	"addon_description" : _("""Ports some features from the Jaws scripts to NVDA
 """),
 	# version
-	"addon_version" : "0.1",
+	"addon_version" : "0.1.1",
 	# Author(s)
 	"addon_author" : u"Dickson Tan <Neurrone@users.noreply.github.com>",
 	# URL for the add-on documentation support
