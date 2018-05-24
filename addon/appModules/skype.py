@@ -19,6 +19,7 @@ addonHandler.initTranslation()
 # Translators: message presented when there is no active conversation
 MSG_NO_ACTIVE_CONVERSATION = _("No active conversation.")
 
+# Used in a failed attempt to prevent focus from being trapped by annoying ads
 class UnfocusableShellDocObjectView(NVDAObjects.IAccessible.ShellDocObjectView):
     def initOverlayClass(self):
         self.shouldAllowIAccessibleFocusEvent = False
@@ -26,10 +27,25 @@ class UnfocusableShellDocObjectView(NVDAObjects.IAccessible.ShellDocObjectView):
     def event_gainFocus(self):
         NVDAObjects.IAccessible.IAccessible.event_gainFocus(self)
         
+# since  commands to review recent messages are moved to  app module  so they work anywhere in Skype (not just in a conversation), 
+# we need to use a Conversation overlay without these gestures
+class ConversationWithoutMessageReviewGestures(skype.Conversation):
+    def initOverlayClass(self):
+        # prevent gesture binding, and remove the defined script
+        self.script_reviewRecentMessage = None
+    
 class AppModule(skype.AppModule):
     scriptCategory = skype.SCRCAT_SKYPE
     def __init__(self, *args, **kwargs):
         super(AppModule, self).__init__(*args, **kwargs)
+        for i in xrange(0, 10):
+            self.bindGesture("kb:NVDA+control+%d" % i, "reviewRecentMessage")
+    
+    def chooseNVDAObjectOverlayClasses(self, obj, clsList):
+        super(AppModule, self).chooseNVDAObjectOverlayClasses(obj, clsList)
+        if isinstance(obj, NVDAObjects.IAccessible.IAccessible) and obj.windowClassName == "TConversationForm" and obj.IAccessibleRole == oleacc.ROLE_SYSTEM_CLIENT:
+            clsList.remove(skype.Conversation)
+            clsList.insert(0, ConversationWithoutMessageReviewGestures)
     
     """
     def chooseNVDAObjectOverlayClasses(self, obj, clsList):
@@ -37,7 +53,6 @@ class AppModule(skype.AppModule):
         if obj.windowClassName == "Shell DocObject View":
             clsList.insert(0, UnfocusableShellDocObjectView)
             ui.message("using overlay")     
-    
     
     def event_NVDAObject_init(self,obj):
         if  obj.windowClassName in ("Shell DocObject View", "Internet Explorer_Server"):
@@ -56,14 +71,13 @@ class AppModule(skype.AppModule):
         fg = api.getForegroundObject()
         try:
             handle = windowUtils.findDescendantWindow(fg.windowHandle, className="TConversationsControl")
-            #w = NVDAObjects.IAccessible.getNVDAObjectFromEvent(handle, winUser.OBJID_CLIENT, 0)
             self.moveFocusTo(handle)
         except LookupError:
             log.debugWarning("Couldn't find recent conversations list")
             ui.message(MSG_NO_ACTIVE_CONVERSATION)
         
         """
-        # We use the built-in hotkey to do this and bind a different gesture
+        # try  using the built-in hotkey to do this and bind a different gesture, doesn't work for some reason
         # alt+2 will be used for reviewing recent messages in future
         keyboardHandler.KeyboardInputGesture.fromName("alt+2").send()
         """
@@ -109,7 +123,7 @@ class AppModule(skype.AppModule):
     # Translators: Input help mode message for move to chat entry field command
     script_moveToChatEntryEdit.__doc__ = _("Moves focus to the message input field for the active conversation.")
     
-    def script_displayChatHistoryInVirtualBuffer(self, gesture):
+    def script_virtualizeConversation(self, gesture):
         try:
             handle = self.getChatHistoryWindow()
             chatHistoryObj = NVDAObjects.IAccessible.getNVDAObjectFromEvent(handle, winUser.OBJID_CLIENT, 0).lastChild
@@ -123,11 +137,34 @@ class AppModule(skype.AppModule):
             log.debugWarning("Couldn't find chat history list")
             ui.message(MSG_NO_ACTIVE_CONVERSATION)
     # Translators: Input help mode message for virtualize conversation command
-    script_displayChatHistoryInVirtualBuffer.__doc__ = _("Presents the chat history of the active conversation in a virtual document for review.")
+    script_virtualizeConversation.__doc__ = _("Presents the chat history of the active conversation in a virtual document for review.")
+    
+    def script_reviewRecentMessage(self, gesture):
+        try:
+            index = int(gesture.mainKeyName[-1])
+        except (AttributeError, ValueError):
+            return
+        if index == 0:
+            index = 10
+        
+        try:
+            chatOutputList = NVDAObjects.IAccessible.getNVDAObjectFromEvent(self.getChatHistoryWindow(), winUser.OBJID_CLIENT, 0).lastChild
+            count = chatOutputList._getMessageCount()
+            if index > count:
+                # Translators: notify users that not that many messages were received
+                ui.message(_("Not that many messages received."))
+                return
+            message = chatOutputList.getChild(count - index)
+            chatOutputList.reportMessage(message.name)
+        except LookupError:
+            log.debugWarning("Couldn't find recent message list")
+        
+    # Translators: Input help mode message for reviewing recent message commands
+    script_reviewRecentMessage.__doc__ = _("Reports and moves the review cursor to a recent message")
     
     __gestures = {
         "kb:control+2" : "moveToRecentConversationsList",
         "kb:control+4" : "moveToChatHistory",
         "kb:control+5" : "moveToChatEntryEdit",
-        "kb:control+6" : "displayChatHistoryInVirtualBuffer"
+        "kb:control+6" : "virtualizeConversation"
     }
