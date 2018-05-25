@@ -112,12 +112,11 @@ class AppModule(skype.AppModule):
     
     def script_virtualizeConversation(self, gesture):
         try:
-            handle = self.getChatHistoryWindow()
-            chatHistoryObj = NVDAObjects.IAccessible.getNVDAObjectFromEvent(handle, winUser.OBJID_CLIENT, 0).lastChild
-            messages = [msg.name for msg in chatHistoryObj.children]
-            conversationName = chatHistoryObj.parent.parent.name
+            chatOutputList = NVDAObjects.IAccessible.getNVDAObjectFromEvent(self.getChatHistoryWindow(), winUser.OBJID_CLIENT, 0).lastChild
+            messages = [msg.name for msg in chatOutputList.children]
+            conversationName = chatOutputList.parent.parent.name
             # Translators: brief summary when virtualizing conversation which includes the number of  messages shown
-            text = _("Displaying the %d most recent messages chronologically:\n%s") % (len(messages), '\n'.join(messages))
+            text = _("Displaying the {n} most recent messages chronologically:\n{messageText}").format(n=len(messages), messageText='\n'.join(messages))
             # Translators: title of the buffer when virtualizing messages, excluding conversation name
             ui.browseableMessage(text, title=_("Chat history for ") + conversationName, isHtml=False)
         except LookupError:
