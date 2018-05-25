@@ -1,6 +1,6 @@
 # Skype Add-on Users Guide
 
-This add-on enhances the built-in app module by porting some features from Dug Lee's excellent [jaws scripts for Skype](http://www.dlee.org/skype/skypeman6.php) to NVDA. 
+This add-on enhances the built-in app module by porting some features from Doug Lee's excellent [jaws scripts for Skype](http://www.dlee.org/skype/skypeman6.php) to NVDA. 
 
 This add-on only works with the classic version of Skype desktop, not the Electron or UWP apps. You can download  the [latest Skype classic from this direct link](http://www.skype.com/go/getskype-full), version 7.41.0.101 at time of writing. If other versions of Skype are installed, you may have to uninstall them first before installing Skype classic.
 
