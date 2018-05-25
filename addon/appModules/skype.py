@@ -2,6 +2,7 @@
 import api
 import appModuleHandler
 import controlTypes
+import datetime
 from logHandler import log
 import NVDAObjects
 import keyboardHandler
@@ -31,29 +32,34 @@ class UnfocusableShellDocObjectView(NVDAObjects.IAccessible.ShellDocObjectView):
 # we need to use a Conversation overlay without these gestures
 class ConversationWithoutMessageReviewGestures(skype.Conversation):
     def initOverlayClass(self):
-        # prevent gesture binding, and remove the defined script
-        self.script_reviewRecentMessage = None
+        super( ConversationWithoutMessageReviewGestures, self).initOverlayClass()
+        # Undo the gesture binding
+        for n in xrange(0, 10):
+			self.removeGestureBinding("kb:NVDA+control+%d" % n)
+        self.script_speakOrCopyRecentMessage = None
     
 class AppModule(skype.AppModule):
     scriptCategory = skype.SCRCAT_SKYPE
     def __init__(self, *args, **kwargs):
         super(AppModule, self).__init__(*args, **kwargs)
+        # keep track of the index of the message and the time when a review recent message command is pressed
+        self.lastIndexOfRecentMessageReviewed = 0
+        self.timeOfLastMessageReviewGesture = datetime.datetime.now()
+        
         for i in xrange(0, 10):
-            self.bindGesture("kb:NVDA+control+%d" % i, "reviewRecentMessage")
+            self.bindGesture("kb:control+%d" % i, "speakOrCopyRecentMessage")
     
     def chooseNVDAObjectOverlayClasses(self, obj, clsList):
         super(AppModule, self).chooseNVDAObjectOverlayClasses(obj, clsList)
         if isinstance(obj, NVDAObjects.IAccessible.IAccessible) and obj.windowClassName == "TConversationForm" and obj.IAccessibleRole == oleacc.ROLE_SYSTEM_CLIENT:
             clsList.remove(skype.Conversation)
             clsList.insert(0, ConversationWithoutMessageReviewGestures)
-    
-    """
-    def chooseNVDAObjectOverlayClasses(self, obj, clsList):
-        super(AppModule, self).chooseNVDAObjectOverlayClasses(obj, clsList)
+        """
         if obj.windowClassName == "Shell DocObject View":
             clsList.insert(0, UnfocusableShellDocObjectView)
             ui.message("using overlay")     
-    
+        
+        
     def event_NVDAObject_init(self,obj):
         if  obj.windowClassName in ("Shell DocObject View", "Internet Explorer_Server"):
             ui.message("Disallowing focus event")
@@ -66,23 +72,6 @@ class AppModule(skype.AppModule):
     def moveFocusTo(self, handle):
         #winUser.sendMessage(api.getForegroundObject().windowHandle, 40, handle, 1)
         winUser.setForegroundWindow(handle)
-    
-    def script_moveToRecentConversationsList(self, gesture):
-        fg = api.getForegroundObject()
-        try:
-            handle = windowUtils.findDescendantWindow(fg.windowHandle, className="TConversationsControl")
-            self.moveFocusTo(handle)
-        except LookupError:
-            log.debugWarning("Couldn't find recent conversations list")
-            ui.message(MSG_NO_ACTIVE_CONVERSATION)
-        
-        """
-        # try  using the built-in hotkey to do this and bind a different gesture, doesn't work for some reason
-        # alt+2 will be used for reviewing recent messages in future
-        keyboardHandler.KeyboardInputGesture.fromName("alt+2").send()
-        """
-    # Translators: Input help mode message for move to recent conversations list command
-    script_moveToRecentConversationsList.__doc__ = _("Moves focus to the list of recent conversations.")
     
     # returns the handle of the chat history list window
     # throws: LookupError if the window could not be found
@@ -98,7 +87,6 @@ class AppModule(skype.AppModule):
     def script_moveToChatHistory(self, gesture):
         try:
             handle = self.getChatHistoryWindow()
-            #w = NVDAObjects.IAccessible.getNVDAObjectFromEvent(handle, winUser.OBJID_CLIENT, 0)
             self.moveFocusTo(handle)
         except LookupError:
             log.debugWarning("Couldn't find chat history list")
@@ -113,7 +101,6 @@ class AppModule(skype.AppModule):
         if controlTypes.STATE_INVISIBLE not in lastChild.states and lastChild.windowClassName == "TConversationForm":
             try:
                 handle = windowUtils.findDescendantWindow(lastChild.windowHandle, None, None, className="TChatRichEdit")
-                #w = NVDAObjects.IAccessible.getNVDAObjectFromEvent(handle, winUser.OBJID_CLIENT, 0)
                 self.moveFocusTo(handle)
             except LookupError:
                 log.debugWarning("Couldn't find chat entry edit.")
@@ -137,9 +124,9 @@ class AppModule(skype.AppModule):
             log.debugWarning("Couldn't find chat history list")
             ui.message(MSG_NO_ACTIVE_CONVERSATION)
     # Translators: Input help mode message for virtualize conversation command
-    script_virtualizeConversation.__doc__ = _("Presents the chat history of the active conversation in a virtual document for review.")
+    script_virtualizeConversation.__doc__ = _("Virtualizes recent messages for the active conversation for convenient review and copying.")
     
-    def script_reviewRecentMessage(self, gesture):
+    def script_speakOrCopyRecentMessage(self, gesture):
         try:
             index = int(gesture.mainKeyName[-1])
         except (AttributeError, ValueError):
@@ -155,16 +142,31 @@ class AppModule(skype.AppModule):
                 ui.message(_("Not that many messages received."))
                 return
             message = chatOutputList.getChild(count - index)
-            chatOutputList.reportMessage(message.name)
+            
+            # is the gesture pressed consecutively withint a short time (0.5 seconds)? E.g pressing ctrl+2 twice quickly
+            # scriptHandler.getLastScriptRepeatCount() can't be used, reviewing different messages count as repetitions;  different keys invoke this gesture
+            timeElapsed = datetime.datetime.now() - self.timeOfLastMessageReviewGesture
+            isRepeat = index == self.lastIndexOfRecentMessageReviewed and timeElapsed.seconds == 0 and timeElapsed.microseconds <= 500000
+            if not isRepeat:
+                chatOutputList.reportMessage(message.name)
+            else:
+                if api.copyToClip(message.name):
+                    # Translators: recent message was successfully copied to clipboard
+                    ui.message(_("Copied."))
+                else:
+                    # Translators: recent message text not successfully copied to clipboard
+                    ui.message(_("There was an unknown error copying the message to the clipboard."))
+            
+            self.lastIndexOfRecentMessageReviewed = index
+            self.timeOfLastMessageReviewGesture = datetime.datetime.now() 
         except LookupError:
             log.debugWarning("Couldn't find recent message list")
-        
+            
     # Translators: Input help mode message for reviewing recent message commands
-    script_reviewRecentMessage.__doc__ = _("Reports and moves the review cursor to a recent message")
+    script_speakOrCopyRecentMessage.__doc__ = _("Speaks one of the 10 most recent  messages  for the active conversation. Press twice quickly to copy it to the clipboard.")
     
     __gestures = {
-        "kb:control+2" : "moveToRecentConversationsList",
-        "kb:control+4" : "moveToChatHistory",
-        "kb:control+5" : "moveToChatEntryEdit",
-        "kb:control+6" : "virtualizeConversation"
+        "kb:alt+4" : "moveToChatHistory",
+        "kb:alt+5" : "moveToChatEntryEdit",
+        "kb:NVDA+alt+w" : "virtualizeConversation"
     }
